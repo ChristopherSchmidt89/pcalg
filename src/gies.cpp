@@ -11,9 +11,7 @@
 // #include <boost/lambda/lambda.hpp>
 #include <boost/graph/adjacency_list.hpp>
 // Experimental support for OpenMP; aim: parallelize more and more functions...
-#ifdef _OPENMP
 #include <omp.h>
-#endif
 
 // Define BGL class for undirected graph
 typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS> UndirectedGraph;
@@ -574,12 +572,11 @@ RcppExport SEXP estimateSkeleton(
 	else throw std::runtime_error(indepTestName + ": Invalid independence test name");
 
 	// Initialize OpenMP
-	#ifdef _OPENMP
 		int threads = Rcpp::as<int>(options["numCores"]);
 		if (threads < 0)
 			threads = omp_get_num_procs();
 		omp_set_num_threads(threads);
-	#endif
+		dout.level(1) << "Number of threads used in level 0 " << threads << std::endl; 
 
 	// Create list of lists for separation sets
 	Rcpp::LogicalMatrix adjMatrix(argAdjMatrix);
@@ -605,8 +602,8 @@ RcppExport SEXP estimateSkeleton(
 				pMax(i, j) = indepTest->test(i, j, emptySet);
 				if (pMax(i, j) >= alpha)
 					sepSet[j][i].set_size(0);
-				dout.level(1) << "  x = " << i << ", y = " << j << ", S = () : pval = "
-						<< pMax(i, j) << std::endl;
+//				dout.level(1) << "  x = " << i << ", y = " << j << ", S = () : pval = "
+//						<< pMax(i, j) << std::endl;
 			}
 		}
 	}

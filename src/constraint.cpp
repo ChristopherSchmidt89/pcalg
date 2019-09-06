@@ -8,6 +8,7 @@
 #include "pcalg/constraint.hpp"
 #include "pcalg/gies_debug.hpp"
 
+#include <omp.h>
 #include <algorithm>
 #include <utility>
 #include <iterator>
@@ -140,6 +141,13 @@ void Skeleton::fitCondInd(
 
 	UndirEdgeIter ei, eiLast;
 
+	int threads = 1;
+#pragma omp parallel
+	{
+		threads = omp_get_num_threads();
+	}
+	dout.level(1) << "Number of threads used in level larger zero " << threads << std::endl;
+
 	// edgeTests lists the number of edge tests that have already been done; its size
 	// corresponds to the size of conditioning sets that have already been checked
 	// TODO: improve handling of check_interrupt, see e.g.
@@ -163,15 +171,17 @@ void Skeleton::fitCondInd(
 				v.push_back(node2);
 			}
 		}
-		boost::dynamic_bitset<> deleteEdges(u.size());
+		//boost::dynamic_bitset<> deleteEdges(u.size());
+		std::vector<uint> deleteEdges(u.size(), 0);
 		arma::ivec localEdgeTests(u.size(), arma::fill::zeros);
 
 		// There is a conditioning set of size "condSize" if u is not empty
 		found = u.size() > 0;
 
 		// Iterate over all edges in the graph
+		size_t uSize = u.size();
 		#pragma omp parallel for
-		for (std::size_t l = 0; l < u.size(); l++) {
+		for (std::size_t l = 0; l < uSize; l++) {
 			bool edgeDone = false;
 
 			int k;
@@ -200,14 +210,15 @@ void Skeleton::fitCondInd(
 					// Test of u and v are conditionally independent given condSet
 					double pval = _indepTest->test(u[l], v[l], condSet);
 					localEdgeTests(l)++;
-					dout.level(1) << "  x = " << u[l] << ", y = " << v[l] << ", S = " <<
-							condSet << " : pval = " << pval << std::endl;
+					//dout.level(1) << "  x = " << u[l] << ", y = " << v[l] << ", S = " <<
+					//		condSet << " : pval = " << pval << std::endl;
 					if ((boost::math::isnan)(pval))
 						pval = (NAdelete ? 1. : 0.);
 					if (pval > pMax(u[l], v[l]))
 						pMax(u[l], v[l]) = pval;
 					if (pval >= alpha) {
-						deleteEdges.set(l);
+						//deleteEdges.set(l);
+						deleteEdges[l] = 1;
 						// arma::ivec condSetR(condSet.size());
 						sepSet[v[l]][u[l]].set_size(condSet.size());
 						for (std::size_t j = 0; j < condSet.size(); ++j)
@@ -250,7 +261,7 @@ void Skeleton::fitCondInd(
 				// m: number of neighbors of v that are not neighbors of u
 				uint m = neighbors.size();
 				neighbors.insert(neighbors.end(), commNeighbors.begin(), commNeighbors.end());
-				dout.level(2) << "  v: " << v << "; neighbors: " << neighbors << " (m = " << m << ")\n";
+				//dout.level(2) << "  v: " << v << "; neighbors: " << neighbors << " (m = " << m << ")\n";
 
 				// If all neighbors of v are also adjacent to u: already checked all conditioning sets
 				if (m > 0) {
@@ -266,14 +277,15 @@ void Skeleton::fitCondInd(
 						// Test of u and v are conditionally independent given condSet
 						double pval = _indepTest->test(v[l], u[l], condSet);
 						localEdgeTests(l)++;
-						dout.level(1) << "  x = " << v[l] << ", y = " << u[l] << ", S = " <<
-								condSet << " : pval = " << pval << std::endl;
+				//		dout.level(1) << "  x = " << v[l] << ", y = " << u[l] << ", S = " <<
+				//				condSet << " : pval = " << pval << std::endl;
 						if ((boost::math::isnan)(pval))
 							pval = (NAdelete ? 1. : 0.);
 						if (pval > pMax(u[l], v[l]))
 							pMax(u[l], v[l]) = pval;
 						if (pval >= alpha) {
-							deleteEdges.set(l);
+							//deleteEdges.set(l);
+							deleteEdges[l] = 1;
 							// arma::ivec condSetR(condSet.size());
 							sepSet[v[l]][u[l]].set_size(condSet.size());
 							for (std::size_t j = 0; j < condSet.size(); ++j)
@@ -301,9 +313,13 @@ void Skeleton::fitCondInd(
 		} // FOR l
 
 		// Delete edges marked for deletion
-		for (std::size_t l = deleteEdges.find_first(); l < deleteEdges.size(); l = deleteEdges.find_next(l))
-			removeEdge(u[l], v[l]);
-
+		//for (std::size_t l = deleteEdges.find_first(); l < deleteEdges.size(); l = deleteEdges.find_next(l))
+		//	removeEdge(u[l], v[l]);
+		for (std::size_t l = 0; l < deleteEdges.size(); ++l){
+			if(deleteEdges[l] == 1){
+				removeEdge(u[l], v[l]);
+			}
+		}
 		// Calculate total number of edge tests
 		if (found)
 			edgeTests.push_back(arma::accu(localEdgeTests));
