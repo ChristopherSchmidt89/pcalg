@@ -12,6 +12,7 @@
 #include <boost/graph/adjacency_list.hpp>
 // Experimental support for OpenMP; aim: parallelize more and more functions...
 #include <omp.h>
+#include <chrono>
 
 // Define BGL class for undirected graph
 typedef boost::adjacency_list<boost::setS, boost::vecS, boost::undirectedS> UndirectedGraph;
@@ -566,6 +567,11 @@ RcppExport SEXP estimateSkeleton(
 		Rcpp::NumericMatrix cor((SEXP)(suffStat["C"]));
 		indepTest = new IndepTestGauss(Rcpp::as<uint>(suffStat["n"]), cor);
 	}
+	else if (indepTestName == "disci") {
+		Rcpp::IntegerMatrix obs((SEXP)(suffStat["dm"]));
+		Rcpp::IntegerVector nlev((SEXP)(suffStat["nlev"]));
+		indepTest = new IndepTestDisci(nlev, obs);
+	}
 	else if (indepTestName == "rfun")
 		indepTest = new IndepTestRFunction(&suffStat, Rcpp::Function(argIndepTestFn));
 	// Invalid independence test name: throw error
@@ -595,6 +601,7 @@ RcppExport SEXP estimateSkeleton(
 	pMax.fill(-1.);
 	std::vector<uint> emptySet;
 	std::vector<int> edgeTests(1);
+	auto start_l0 = std::chrono::system_clock::now();
 	for (int i = 0; i < p; i++) {
 		#pragma omp parallel for
 		for (int j = i + 1; j < p; j++) {
@@ -607,6 +614,9 @@ RcppExport SEXP estimateSkeleton(
 			}
 		}
 	}
+    auto duration_l0 = std::chrono::duration_cast<std::chrono::microseconds>
+        (std::chrono::system_clock::now() - start_l0).count();
+    dout.level(1) << "Exec Level 0 in microseconds: " << duration_l0 << std::endl;
 	for (int i = 0; i < p; i++) {
 		for (int j = i + 1; j < p; j++) {
 			if (fixedMatrix(i, j))

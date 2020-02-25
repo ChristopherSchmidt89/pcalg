@@ -66,6 +66,26 @@ public:
 };
 
 /**
+ * Conditional independence test for Discrete data
+ */
+class IndepTestDisci : public IndepTest
+{
+protected:
+	/**
+	 * Sufficient statistic for easier access in independence test
+	 */
+	arma::imat _observations;
+	arma::ivec _nlev;
+
+public:
+	IndepTestDisci(Rcpp::IntegerVector& nlev, Rcpp::IntegerMatrix& obs) :
+		_nlev(nlev.begin(), nlev.size(), false),
+		_observations(obs.begin(), obs.nrow(), obs.ncol(), false) {}
+
+	virtual double test(uint u, uint v, std::vector<uint> S) const;
+};
+
+/**
  * Conditional independence test for Gaussian data
  */
 class IndepTestGauss : public IndepTest

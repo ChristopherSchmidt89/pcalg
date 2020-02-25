@@ -13,10 +13,61 @@
 #include <utility>
 #include <iterator>
 #include <limits>
+#include <chrono>
+#include <math.h>
 #include <boost/math/special_functions/log1p.hpp>
 #include <boost/math/distributions/normal.hpp>
 #include <boost/math/special_functions/fpclassify.hpp>
 #include <boost/dynamic_bitset.hpp>
+
+static double igf_own(double S, double Z)
+{
+    if(Z < 0.0){
+      return 0.0;
+    }
+    double Sc = (1.0 / S);
+    Sc *= pow(Z, S);
+    Sc *= exp(-Z);
+
+    double Sum = 1.0;
+    double Nom = 1.0;
+    double Denom = 1.0;
+
+    for(int I = 0; I < 200; I++){
+      Nom *= Z;
+      S++;
+      Denom *= S;
+      Sum += (Nom / Denom);
+    }
+
+    return Sum * Sc;
+}
+
+static double pchisq_own(double chi_squared, int dof){
+  if(chi_squared < 0 || dof < 1)
+    {
+      // TODO check if we have to return 1.0 for lower.tail = FALSE
+        return 1.0;
+    }
+    double K = ((double)dof) * 0.5;
+    double X = chi_squared * 0.5;
+    if(dof == 2){
+      // TODO check if we have to return 1 - exp(-1.0 * X) for lower.tail = FALSE
+      return (exp(-1.0 * X));
+    }
+
+    double PValue = igf_own(K, X);
+    if(PValue <= 1e-8){
+      return 1 - 1e-14;
+    }
+    if(isnan(PValue) || isinf(PValue)){
+        return (1e-14);
+    }
+
+    PValue /= tgamma(K);
+
+    return (1.0 - PValue);
+}
 
 double IndepTestRFunction::test(uint u, uint v, std::vector<uint> S) const
 {
@@ -29,6 +80,97 @@ double IndepTestRFunction::test(uint u, uint v, std::vector<uint> S) const
 
 	// Call R function to perform independence test
 	return Rcpp::as<double>(_testFunction(u + 1, v + 1, shiftS, *_suffStat));
+}
+
+double IndepTestDisci::test(uint u, uint v, std::vector<uint> S) const
+{
+	int dof = 0;
+	double chi_squared = 0.0;
+	double observation_count = (double) _observations.n_rows;
+	if (S.empty()){
+		int u_cat_count = _nlev(u);
+		int v_cat_count = _nlev(v);
+		int contingency[u_cat_count * v_cat_count] = {0};
+		int marginal_sums_u[u_cat_count] = {0};
+		int marginal_sums_v[v_cat_count] = {0};
+		for(int i = 0; i < _observations.n_rows; ++i){
+			contingency[_observations(i, u) * v_cat_count + _observations(i, v)] += 1;
+		}
+		for(int i = 0; i < u_cat_count; ++i){
+			int tmp_sum = 0;
+			for(int j = 0; j < v_cat_count; ++j){
+				tmp_sum += contingency[(i*v_cat_count)+j];
+			}
+			marginal_sums_u[i] = tmp_sum;
+		}
+		for(int i = 0; i < v_cat_count; ++i){
+			int tmp_sum = 0;
+			for(int j = 0; j < u_cat_count; ++j){
+				tmp_sum += contingency[(j*v_cat_count)+i];
+			}
+			marginal_sums_v[i] = tmp_sum;
+		}
+		for(int i = 0; i < u_cat_count; ++i){
+			for(int j = 0; j < v_cat_count; ++j){
+				double expected = marginal_sums_u[i] * (double)marginal_sums_v[j] / _observations.n_rows;
+				if(expected != 0){
+					chi_squared += (contingency[i * v_cat_count + j] - expected) * (contingency[i * v_cat_count + j] - expected) / expected;
+				}
+			}
+		}
+		dof = (u_cat_count - 1) * (v_cat_count - 1);
+
+	}else {
+		int u_cat_count = _nlev(u);
+		int v_cat_count = _nlev(v);
+		int s_cat_count = 1;
+		for ( auto &i : S ) {
+			s_cat_count *= _nlev(i);
+		}
+		int contingency[u_cat_count * v_cat_count * s_cat_count] = {0};
+		int indep1_sums[u_cat_count * s_cat_count] = {0};
+		int indep2_sums[v_cat_count * s_cat_count] = {0};
+		int total_sums[s_cat_count] = {0};
+
+		for (int i = 0; i < _observations.n_rows; ++i){
+			int multiplier = 1;
+			int cond_index = 0;
+			for (auto &j : S) {
+				cond_index += _observations(i, j) * multiplier;
+				multiplier *= _nlev(j);
+			}
+			contingency[cond_index * u_cat_count * v_cat_count + _observations(i, u) * v_cat_count + _observations(i, v)]++;
+		}
+
+		for(int i = 0; i < s_cat_count; ++i){
+			for (int j = 0; j < u_cat_count; ++j){
+				for (int k = 0; k < v_cat_count; ++k){
+					indep1_sums[i* u_cat_count + j] += contingency[i* u_cat_count * v_cat_count + j * v_cat_count + k];
+					indep2_sums[i* v_cat_count + k] += contingency[i* u_cat_count * v_cat_count + j * v_cat_count + k];
+					total_sums[i] += contingency[i* u_cat_count * v_cat_count + j * v_cat_count + k];
+				}
+			}
+		}
+
+		double expected = 0;
+		for(int i = 0; i < s_cat_count; ++i){
+			if (total_sums[i] == 0){
+				continue;
+			}
+
+			for (int k = 0; k < v_cat_count; ++k){
+				for (int j = 0; j < u_cat_count; ++j){
+					expected = indep1_sums[i*u_cat_count + j] * (double) indep2_sums[i*v_cat_count +k]  / total_sums[i];
+					if(expected != 0.0){
+						chi_squared += (contingency[i* u_cat_count * v_cat_count + j * v_cat_count + k] - expected) *
+						( contingency[i* u_cat_count * v_cat_count + j * v_cat_count + k] - expected) / expected;
+					}
+				}
+			}
+		}
+		dof = (u_cat_count - 1) * (v_cat_count - 1) * s_cat_count;
+	}
+	return R::pchisq(chi_squared, dof, FALSE, FALSE);
 }
 
 double IndepTestGauss::test(uint u, uint v, std::vector<uint> S) const
@@ -147,7 +289,7 @@ void Skeleton::fitCondInd(
 		threads = omp_get_num_threads();
 	}
 	dout.level(1) << "Number of threads used in level larger zero " << threads << std::endl;
-
+	auto start_l = std::chrono::system_clock::now();
 	// edgeTests lists the number of edge tests that have already been done; its size
 	// corresponds to the size of conditioning sets that have already been checked
 	// TODO: improve handling of check_interrupt, see e.g.
@@ -323,6 +465,9 @@ void Skeleton::fitCondInd(
 		// Calculate total number of edge tests
 		if (found)
 			edgeTests.push_back(arma::accu(localEdgeTests));
+		auto duration_l = std::chrono::duration_cast<std::chrono::microseconds>
+			(std::chrono::system_clock::now() - start_l).count();
+		dout.level(1) << "Exec Level "<< condSize << " in microseconds: " << duration_l << std::endl;
 	} // FOR condSize
 }
 
