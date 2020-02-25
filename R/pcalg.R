@@ -2052,7 +2052,7 @@ skeleton <- function(suffStat, indepTest, alpha, labels, p,
     ## Do calculation in C++...
     if (identical(indepTest, gaussCItest))
       indepTestName <- "gauss"
-    if (identical(indepTest, disCItest))
+    else if (identical(indepTest, disCItest))
       indepTestName <- "disci"
     else
       indepTestName <- "rfun"
