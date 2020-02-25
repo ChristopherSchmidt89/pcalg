@@ -2,7 +2,7 @@
  * Main file of the Greedy Interventional Equivalence Search library for R
  *
  * @author Alain Hauser
- * $Id: gies.cpp 393 2016-08-20 09:43:47Z alhauser $
+ * $Id: gies.cpp 501 2019-11-21 07:28:17Z alhauser $
  */
 
 #include <vector>
@@ -249,7 +249,7 @@ RcppExport SEXP causalInference(
 			graph.limitVertexDegree(maxDegrees);
 		}
 	}
-	
+
 	// Cast option for required phases
 	dout.level(2) << "  Casting phases...\n";
 	std::vector< std::string > optPhases = Rcpp::as< std::vector<std::string> >(options["phase"]);
@@ -277,15 +277,15 @@ RcppExport SEXP causalInference(
 	if (!Rf_isNull(options["fixedGaps"])) {
 		Rcpp::LogicalMatrix gapsMatrix((SEXP)(options["fixedGaps"]));
 		uint n_gaps = 0;
-		for (int i = 0; i < p; ++i)
-			for (int j = i + 1; j < p; ++j)
+		for (uint i = 0; i < p; ++i)
+			for (uint j = i + 1; j < p; ++j)
 				if (gapsMatrix(i, j))
 					n_gaps++;
 		// Invert gaps if more than half of the possible edges are fixed gaps
 		bool gapsInverted = 4*n_gaps > p*(p - 1);
 		EssentialGraph fixedGaps(p);
-		for (int i = 0; i < p; ++i)
-			for (int j = i + 1; j < p; ++j)
+		for (uint i = 0; i < p; ++i)
+			for (uint j = i + 1; j < p; ++j)
 				if (gapsMatrix(i, j) ^ gapsInverted)
 					fixedGaps.addEdge(i, j, true);
 		graph.setFixedGaps(fixedGaps, gapsInverted);
@@ -317,7 +317,7 @@ RcppExport SEXP causalInference(
 		int phaseCount(1);
 		do {
 			cont = false;
-			for (int i = 0; i < phases.size(); ++i) {
+			for (uint i = 0; i < phases.size(); ++i) {
 				for (steps.push_back(0);
 						graph.greedyStepDir(phases[i], adaptive);
 						steps.back()++) {
@@ -391,7 +391,10 @@ RcppExport SEXP causalInference(
 					case SD_TURNING:
 						ss << "turning";
 						break;
-					}
+                                        
+                                        default:
+                                                break;
+                                        }
 					ss << stepCount[dir]++;
 					stepNames.push_back(ss.str());
 				} // IF dir
@@ -409,7 +412,7 @@ RcppExport SEXP causalInference(
 		int phaseCount(1);
 		do {
 			cont = false;
-			for (int i = 0; i < phases.size(); ++i) {
+			for (uint i = 0; i < phases.size(); ++i) {
 				for (steps.push_back(0);
 						graph.greedyDAGStepDir(phases[i]);
 						steps.back()++) {
@@ -480,7 +483,9 @@ RcppExport SEXP dagToEssentialGraph(SEXP argGraph, SEXP argTargets)
 	END_RCPP
 }
 
-
+/**
+ * Calculate the optimal intervention target for an essential graph.
+ */
 RcppExport SEXP optimalTarget(SEXP argGraph, SEXP argMaxSize)
 {
 	// Initialize automatic exception handling; manual one does not work any more...
@@ -493,10 +498,10 @@ RcppExport SEXP optimalTarget(SEXP argGraph, SEXP argMaxSize)
 	// Calculate optimal intervention target
 	std::set<uint> target = graph.getOptimalTarget(maxSize);
 
-	// Adapt numbering convention...
+	// Convert from C++ (0 based) to R (1 based) numbering convention.
 	std::vector<uint> result(target.begin(), target.end());
 	for (std::vector<uint>::iterator vi = result.begin(); vi != result.end(); ++vi)
-		(*vi)--;
+		(*vi)++;
 	return Rcpp::wrap(result);
 
 	END_RCPP
