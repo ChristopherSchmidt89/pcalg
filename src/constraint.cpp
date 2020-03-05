@@ -97,18 +97,10 @@ double IndepTestDisci::test(uint u, uint v, std::vector<uint> S) const
 			contingency[_observations(i, u) * v_cat_count + _observations(i, v)] += 1;
 		}
 		for(int i = 0; i < u_cat_count; ++i){
-			int tmp_sum = 0;
 			for(int j = 0; j < v_cat_count; ++j){
-				tmp_sum += contingency[(i*v_cat_count)+j];
+				marginal_sums_u[i] += contingency[(i*v_cat_count)+j];
+				marginal_sums_v[j] += contingency[(i*v_cat_count)+j];
 			}
-			marginal_sums_u[i] = tmp_sum;
-		}
-		for(int i = 0; i < v_cat_count; ++i){
-			int tmp_sum = 0;
-			for(int j = 0; j < u_cat_count; ++j){
-				tmp_sum += contingency[(j*v_cat_count)+i];
-			}
-			marginal_sums_v[i] = tmp_sum;
 		}
 		for(int i = 0; i < u_cat_count; ++i){
 			for(int j = 0; j < v_cat_count; ++j){
@@ -170,6 +162,8 @@ double IndepTestDisci::test(uint u, uint v, std::vector<uint> S) const
 		}
 		dof = (u_cat_count - 1) * (v_cat_count - 1) * s_cat_count;
 	}
+	//return pchisq_own(chi_squared, dof);
+	//dout.level(1) << "u: " << u << " v: " << v << " dof: " << dof << " chi_squared: " << chi_squared << " pchisq: " << R::pchisq(chi_squared, dof, FALSE, FALSE) << std::endl; // debug own
 	return R::pchisq(chi_squared, dof, FALSE, FALSE);
 }
 
