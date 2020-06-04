@@ -2192,6 +2192,7 @@ pc <- function(suffStat, indepTest, alpha, labels, p,
   ## Modifications: Sarah Gerster, Diego Colombo, Markus Kalisch
 
   ## Initial Checks
+  #start_time <- Sys.time() # time overall
   cl <- match.call()
   if(!missing(p)) stopifnot(is.numeric(p), length(p <- as.integer(p)) == 1, p >= 2)
   if(missing(labels)) {
@@ -2218,13 +2219,13 @@ pc <- function(suffStat, indepTest, alpha, labels, p,
   }
 
   if (conservative && maj.rule) stop("Choose either conservative PC or majority rule PC!")
-
+  #skeleton_time <- Sys.time() # time overall
   ## Skeleton
   skel <- skeleton(suffStat, indepTest, alpha, labels = labels, method = skel.method,
                    fixedGaps = fixedGaps, fixedEdges = fixedEdges,
                    NAdelete=NAdelete, m.max=m.max, numCores=numCores, verbose=verbose)
   skel@call <- cl # so that makes it into result
-
+  #orientation_time <- Sys.time() # time overall
   ## Orient edges
   if (!conservative && !maj.rule) {
     switch (u2pd,
@@ -2242,6 +2243,12 @@ pc <- function(suffStat, indepTest, alpha, labels, p,
     udag2pdagRelaxed(pc.$sk, verbose = verbose,
                      unfVect = pc.$unfTripl, solve.confl = solve.confl)
   }
+  #end_time <- Sys.time() # time overall
+  #init_time <- as.double(difftime(skeleton_time, start_time, units='secs')) # time overall
+  #learning_time <- as.double(difftime(orientation_time, skeleton_time, units='secs')) # time overall
+  #orienting_time <- as.double(difftime(end_time, orientation_time, units='secs')) # time overall
+  #cat("Init Time: ", init_time, " \nLearning Time: ", learning_time, "\nOrienting Time: ", orienting_time, "\n") # time overall
+
 } ## {pc}
 
 
