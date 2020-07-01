@@ -283,7 +283,6 @@ void Skeleton::fitCondInd(
 		threads = omp_get_num_threads();
 	}
 	dout.level(1) << "Number of threads used in level larger zero " << threads << std::endl;
-	auto start_l = std::chrono::system_clock::now();
 	// edgeTests lists the number of edge tests that have already been done; its size
 	// corresponds to the size of conditioning sets that have already been checked
 	// TODO: improve handling of check_interrupt, see e.g.
@@ -291,6 +290,7 @@ void Skeleton::fitCondInd(
 	for (uint condSize = edgeTests.size();
 			!check_interrupt() && found && (int)condSize <= maxCondSize;
 			++condSize) {
+		auto start_l = std::chrono::system_clock::now();
 		dout.level(1) << "Order = " << condSize << "; remaining edges: " << getEdgeCount() << std::endl;
 
 		// Make a list of edges in the graph; this is needed for OpenMP
