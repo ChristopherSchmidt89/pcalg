@@ -2056,12 +2056,18 @@ skeleton <- function(suffStat, indepTest, alpha, labels, p,
       indepTestName <- "disci"
     else
       indepTestName <- "rfun"
+  number_of_levels = 50
+  threshold <- matrix(0, nrow = 1, ncol = number_of_levels)
+  for (i in 0:(min(number_of_levels, suffStat$n - 3) - 1)){
+    threshold[i] <- abs(qnorm((alpha/2), mean = 0, sd = 1)/sqrt(suffStat$n - i - 3))  
+  }
     options <- list(
       verbose = as.integer(verbose),
       m.max = as.integer(ifelse(is.infinite(m.max), p, m.max)),
-        NAdelete = NAdelete,
-        numCores = numCores)
-    res <- .Call("estimateSkeleton", G, suffStat, indepTestName, indepTest, alpha, fixedEdges, options);
+      NAdelete = NAdelete,
+      numCores = numCores
+      )
+    res <- .Call("estimateSkeleton", G, suffStat, threshold, indepTestName, indepTest, alpha, fixedEdges, options);
     G <- res$amat
     ## sepset <- res$sepset
     sepset <- lapply(seq_p, function(i) c(

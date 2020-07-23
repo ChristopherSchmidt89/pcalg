@@ -186,27 +186,31 @@ double IndepTestGauss::test(uint u, uint v, std::vector<uint> S) const
 	#define CUT_THR 0.9999999
 	double r, absz;
 	//dout.level(3) << " Performing independence test for conditioning set of size " << S.size() << std::endl;
-	if (S.empty())
+	if (S.empty()){
 		r = _correlation(u, v);
-	else if (S.size() == 1)
+		return abs( 0.5 * log( abs( (1 + r) / (1 - r) ) ) );
+	}else if (S.size() == 1){
 		r = (C_sub(0, 1) - C_sub(0, 2) * C_sub(1, 2))/sqrt((1 - C_sub(1, 2)*C_sub(1, 2)) * (1 - C_sub(0, 2)*C_sub(0, 2)));
-	else {
+		return fabs( 0.5 * (log( fabs((1 + r))) - log(fabs(1 - r)) ) );
+	}else {
 		arma::mat PM;
 		pinv(PM, C_sub);
 		// TODO include error handling
-		r = - PM(0, 1)/sqrt(PM(0, 0) * PM(1, 1));
+		r = PM(0, 1)/sqrt(PM(0, 0) * PM(1, 1));
+		return abs( 0.5 * log( abs( (1 + r)  /  (1 - r) ) ) );
 	}
 	// Absolute value of r, respect cut threshold
-	r = std::min(CUT_THR, std::abs(r));
+	// r = std::min(CUT_THR, std::abs(r));
 
 	// Absolute value of z statistic
 	// Note: log1p for more numerical stability, see "Aaux.R"; log1p is also available in
 	// header <cmath>, but probably only on quite up to date headers (C++11)?
-	absz = sqrt(_sampleSize - S.size() - 3.0) * 0.5 * boost::math::log1p(2*r/(1 - r));
+
+	/*absz = sqrt(_sampleSize - S.size() - 3.0) * 0.5 * boost::math::log1p(2*r/(1 - r));
 
 	// Calculate p-value to z statistic (based on standard normal distribution)
 	boost::math::normal distN;
-	return (2*boost::math::cdf(boost::math::complement(distN, absz)));
+	return (2*boost::math::cdf(boost::math::complement(distN, absz)));*/
 }
 
 void Skeleton::addFixedEdge(const uint a, const uint b)
@@ -264,6 +268,7 @@ Rcpp::LogicalMatrix Skeleton::getAdjacencyMatrix()
 void Skeleton::fitCondInd(
 		const double alpha,
 		Rcpp::NumericMatrix& pMax,
+		Rcpp::NumericVector thresholds,
 		SepSets& sepSet,
 		std::vector<int>& edgeTests,
 		int maxCondSize,
@@ -352,7 +357,7 @@ void Skeleton::fitCondInd(
 						pval = (NAdelete ? 1. : 0.);
 					if (pval > pMax(u[l], v[l]))
 						pMax(u[l], v[l]) = pval;
-					if (pval >= alpha) {
+					if (pval < thresholds[condSize]) {
 						//deleteEdges.set(l);
 						deleteEdges[l] = 1;
 						// arma::ivec condSetR(condSet.size());
@@ -419,7 +424,7 @@ void Skeleton::fitCondInd(
 							pval = (NAdelete ? 1. : 0.);
 						if (pval > pMax(u[l], v[l]))
 							pMax(u[l], v[l]) = pval;
-						if (pval >= alpha) {
+						if (pval < thresholds[condSize]) {
 							//deleteEdges.set(l);
 							deleteEdges[l] = 1;
 							// arma::ivec condSetR(condSet.size());

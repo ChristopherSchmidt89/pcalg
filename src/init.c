@@ -6,7 +6,7 @@
 /* .Call calls */
 extern SEXP causalInference(SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP dagToEssentialGraph(SEXP, SEXP);
-extern SEXP estimateSkeleton(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP estimateSkeleton(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP globalMLE(SEXP, SEXP, SEXP, SEXP);
 extern SEXP globalScore(SEXP, SEXP, SEXP, SEXP);
 extern SEXP localMLE(SEXP, SEXP, SEXP, SEXP, SEXP);
@@ -17,7 +17,7 @@ extern SEXP representative(SEXP);
 static const R_CallMethodDef CallEntries[] = {
     {"causalInference",     (DL_FUNC) &causalInference,     5},
     {"dagToEssentialGraph", (DL_FUNC) &dagToEssentialGraph, 2},
-    {"estimateSkeleton",    (DL_FUNC) &estimateSkeleton,    7},
+    {"estimateSkeleton",    (DL_FUNC) &estimateSkeleton,    8},
     {"globalMLE",           (DL_FUNC) &globalMLE,           4},
     {"globalScore",         (DL_FUNC) &globalScore,         4},
     {"localMLE",            (DL_FUNC) &localMLE,            5},

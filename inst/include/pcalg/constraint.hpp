@@ -193,6 +193,7 @@ public:
 	void fitCondInd(
 			const double alpha,
 			Rcpp::NumericMatrix& pMax,
+			Rcpp::NumericVector thresholds,
 			SepSets& sepSet,
 			std::vector<int>& edgeTests,
 			int maxCondSize = -1,

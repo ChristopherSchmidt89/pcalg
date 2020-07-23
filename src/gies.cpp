@@ -544,6 +544,7 @@ RcppExport SEXP condIndTestGauss(
 RcppExport SEXP estimateSkeleton(
 		SEXP argAdjMatrix,
 		SEXP argSuffStat,
+		SEXP argThresholds,
 		SEXP argIndepTest,
 		SEXP argIndepTestFn,
 		SEXP argAlpha,
@@ -563,6 +564,7 @@ RcppExport SEXP estimateSkeleton(
 	dout.level(2) << "Casting sufficient statistic...\n";
 	double alpha = Rcpp::as<double>(argAlpha);
 	Rcpp::List suffStat(argSuffStat);
+	Rcpp::NumericVector thresholds(argThresholds);
 
 	// Cast independence test
 	dout.level(2) << "Casting independence test...\n";
@@ -612,7 +614,7 @@ RcppExport SEXP estimateSkeleton(
 		for (int j = i + 1; j < p; j++) {
 			if (adjMatrix(i, j) && !fixedMatrix(i, j)) {
 				pMax(i, j) = indepTest->test(i, j, emptySet);
-				if (pMax(i, j) >= alpha)
+				if (pMax(i, j) < thresholds[0])
 					sepSet[j][i].set_size(0);
 //				dout.level(1) << "  x = " << i << ", y = " << j << ", S = () : pval = "
 //						<< pMax(i, j) << std::endl;
@@ -628,7 +630,7 @@ RcppExport SEXP estimateSkeleton(
 				graph.addFixedEdge(i, j);
 			else if (adjMatrix(i, j)) {
 				edgeTests[0]++;
-				if (pMax(i, j) < alpha)
+				if (pMax(i, j) >= thresholds[0])
 					graph.addEdge(i, j);
 			}
 		}
@@ -639,6 +641,7 @@ RcppExport SEXP estimateSkeleton(
 	dout.level(1) << "Fitting skeleton to data...\n";
 	graph.fitCondInd(alpha,
 			pMax,
+			thresholds,
 			sepSet,
 			edgeTests,
 			Rcpp::as<int>(options["m.max"]),
