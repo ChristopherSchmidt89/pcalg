@@ -188,15 +188,18 @@ double IndepTestGauss::test(uint u, uint v, std::vector<uint> S) const
 	//dout.level(3) << " Performing independence test for conditioning set of size " << S.size() << std::endl;
 	if (S.empty()){
 		r = _correlation(u, v);
+		r = std::min(CUT_THR, std::abs(r));
 		return abs( 0.5 * log( abs( (1 + r) / (1 - r) ) ) );
 	}else if (S.size() == 1){
 		r = (C_sub(0, 1) - C_sub(0, 2) * C_sub(1, 2))/sqrt((1 - C_sub(1, 2)*C_sub(1, 2)) * (1 - C_sub(0, 2)*C_sub(0, 2)));
+		r = std::min(CUT_THR, std::abs(r));
 		return fabs( 0.5 * (log( fabs((1 + r))) - log(fabs(1 - r)) ) );
 	}else {
 		arma::mat PM;
 		pinv(PM, C_sub);
 		// TODO include error handling
 		r = PM(0, 1)/sqrt(PM(0, 0) * PM(1, 1));
+		r = std::min(CUT_THR, std::abs(r));
 		return abs( 0.5 * log( abs( (1 + r)  /  (1 - r) ) ) );
 	}
 	// Absolute value of r, respect cut threshold
